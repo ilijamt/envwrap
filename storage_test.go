@@ -55,6 +55,7 @@ func TestEnvHandler(t *testing.T) {
 func ExampleNewStorage() {
 
 	env := envwrap.NewStorage()
+	defer env.ReleaseAll()
 	oldVariable := os.Getenv("A_VARIABLE")
 	env.Store("A_VARIABLE", "test")
 	fmt.Println(oldVariable, os.Getenv("A_VARIABLE"))
