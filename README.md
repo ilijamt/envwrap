@@ -1,7 +1,7 @@
 Environment Wrapper
 ===================
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/ilijamt/envwrap)](https://goreportcard.com/report/github.com/ilijamt/envwrap) [![Build Status](https://travis-ci.org/ilijamt/envwrap.svg?branch=master)](https://travis-ci.org/ilijamt/envwrap) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/ilijamt/envwrap/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ilijamt/envwrap)](https://goreportcard.com/report/github.com/ilijamt/envwrap) [![Build Status](https://travis-ci.org/ilijamt/envwrap.svg?branch=master)](https://travis-ci.org/ilijamt/envwrap) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/ilijamt/envwrap/blob/master/LICENSE)
 
 A small and useful utility for tests so you can run your tests with multiple environments from inside the test functions.
 
