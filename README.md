@@ -15,12 +15,25 @@ The environment is set for the whole application while you use the wrapper, so r
 ## Usage
 
 ```go
-env := envwrap.NewStorage()
-defer env.ReleaseAll()
-oldVariable := os.Getenv("A_VARIABLE")
-env.Store("A_VARIABLE", "test")
-fmt.Println(oldVariable) // ""
-fmt.Println(os.Getenv("A_VARIABLE")) // "test"
-env.Release("A_VARIABLE")
-fmt.Println(oldVariable, os.Getenv("A_VARIABLE")) // ""
+import (
+    "github.com/ilijamt/envwrap"
+)
+
+func main () {
+    env := envwrap.NewStorage()
+    defer env.ReleaseAll()
+    oldVariable := os.Getenv("A_VARIABLE")
+    env.Store("A_VARIABLE", "test")
+    fmt.Println("ORIGINAL_VALUE=", oldVariable)
+    fmt.Println("A_VARIABLE=", os.Getenv("A_VARIABLE"))
+    env.Release("A_VARIABLE")
+    fmt.Println("A_VARIABLE=", os.Getenv("A_VARIABLE"))
+}
+```
+
+Should print 
+```bash
+ORIGINAL_VALUE=
+A_VARIABLE=test
+A_VARIABLE=
 ```
