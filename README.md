@@ -10,7 +10,6 @@ The environment is set for the whole application while you use the wrapper, so r
 ## Requirements
 
 * [Go](https://golang.org/doc/install)
-* [Go dep](https://github.com/golang/dep) (to install vendor deps)
 
 ## Usage
 
