@@ -3,6 +3,7 @@ package envwrap
 import (
 	"errors"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -25,6 +26,19 @@ func NewStorage() *Storage {
 	return &Storage{env: make(map[string]string)}
 }
 
+// NewCleanStorage removes all env variables and returns a new environment storage instance, only used for debugging purposes, so we can test various combination of environments from the single environment
+func NewCleanStorage() *Storage {
+	storage := &Storage{env: make(map[string]string)}
+	// fetch all the envs and put in the storage
+	for _, s := range os.Environ() {
+		parts := strings.SplitN(s, "=", 2)
+		k, v := parts[0], parts[1]
+		_ = storage.Store(k, v)
+	}
+	os.Clearenv()
+	return storage
+}
+
 // List returns the list of entries from environment storage
 func (e *Storage) List() map[string]string {
 	e.mu.Lock()
@@ -43,10 +57,10 @@ func (e *Storage) Store(envar string, value string) error {
 
 	if enval := os.Getenv(envar); enval != "" {
 		e.env[envar] = enval
-		os.Setenv(envar, value)
+		_ = os.Setenv(envar, value)
 	} else {
 		e.env[envar] = ""
-		os.Setenv(envar, value)
+		_ = os.Setenv(envar, value)
 	}
 
 	return nil
@@ -59,9 +73,9 @@ func (e *Storage) Release(envar string) error {
 
 	if val, ok := e.env[envar]; ok {
 		if val == "" {
-			os.Unsetenv(envar)
+			_ = os.Unsetenv(envar)
 		} else {
-			os.Setenv(envar, val)
+			_ = os.Setenv(envar, val)
 		}
 		delete(e.env, envar)
 		return nil
@@ -74,7 +88,7 @@ func (e *Storage) Release(envar string) error {
 // ReleaseAll releases all environment entries we have stored, restoring the environment to the original state as before the call was made
 func (e *Storage) ReleaseAll() (err error) {
 	for envar := range e.env {
-		e.Release(envar)
+		_ = e.Release(envar)
 	}
 	return err
 }
