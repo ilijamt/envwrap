@@ -1,5 +1,4 @@
 # envwrap - Environment Variable Management for Go Tests
-===================
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/ilijamt/envwrap)](https://goreportcard.com/report/github.com/ilijamt/envwrap)
 [![Codecov](https://img.shields.io/codecov/c/gh/ilijamt/envwrap)](https://app.codecov.io/gh/ilijamt/envwrap)

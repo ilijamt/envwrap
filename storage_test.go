@@ -79,7 +79,7 @@ func TestCleanupAfterTest(t *testing.T) {
 		testValue := "test_value_cleanup"
 
 		// Set initial state - ensure the variable doesn't exist
-		os.Unsetenv(testKey)
+		_ = os.Unsetenv(testKey)
 
 		// Set the variable through our wrapper
 		s.Setenv(envwrap.KV{Key: testKey, Value: testValue})
@@ -105,7 +105,7 @@ func TestOverrideAndRestore(t *testing.T) {
 	newValue := "new_value"
 
 	// Set initial value
-	os.Setenv(testKey, originalValue)
+	_ = os.Setenv(testKey, originalValue)
 
 	t.Run("SubTest", func(t *testing.T) {
 		s := envwrap.New(t)
@@ -127,14 +127,14 @@ func TestOverrideAndRestore(t *testing.T) {
 	}
 
 	// Clean up
-	os.Unsetenv(testKey)
+	_ = os.Unsetenv(testKey)
 }
 
 func TestNewCleanRestoresEnvironment(t *testing.T) {
 	// Set a test environment variable
 	testKey := "TEST_RESTORE_ENV"
 	testValue := "test_restore_value"
-	os.Setenv(testKey, testValue)
+	_ = os.Setenv(testKey, testValue)
 
 	t.Run("SubTest", func(t *testing.T) {
 		// Create a clean environment
@@ -154,5 +154,5 @@ func TestNewCleanRestoresEnvironment(t *testing.T) {
 	}
 
 	// Clean up
-	os.Unsetenv(testKey)
+	_ = os.Unsetenv(testKey)
 }
