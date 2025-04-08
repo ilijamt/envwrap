@@ -21,7 +21,7 @@
 ## Installation
 
 ```bash
-go get github.com/ilijamt/envwrap
+go get github.com/ilijamt/envwrap/v2
 ```
 
 ## Usage
