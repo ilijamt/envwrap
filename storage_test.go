@@ -1,79 +1,158 @@
 package envwrap_test
 
 import (
-	"fmt"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/ilijamt/envwrap"
 )
 
-func TestNewCleanStorage(t *testing.T) {
-	envs := os.Environ()
-	ncs := envwrap.NewCleanStorage()
-	assert.EqualValues(t, len(envs), len(ncs.List()))
-	assert.Empty(t, os.Environ())
-	assert.NoError(t, ncs.ReleaseAll())
-	assert.EqualValues(t, len(envs), len(os.Environ()))
-	assert.Empty(t, ncs.List())
+func TestNew(t *testing.T) {
+	// Test that New returns a non-nil Storage
+	s := envwrap.New(t)
+	if s == nil {
+		t.Fatal("New returned nil")
+	}
 }
 
-func TestEnvNotDefinedMap(t *testing.T) {
-	nes1 := envwrap.NewStorage()
-	defer func() {
-		assert.NoError(t, nes1.ReleaseAll())
-		assert.Error(t, nes1.Release("test_nes_handler"))
-		assert.Empty(t, os.Getenv("test_nes_handler"))
-	}()
-	assert.NoError(t, nes1.Store("test_nes_handler", "test"))
-	nes2 := envwrap.NewStorage()
-	assert.Error(t, nes2.Release("test_nes_handler"))
-	assert.NotNil(t, nes1.List())
-	assert.NoError(t, nes2.ReleaseAll())
+func TestNewClean(t *testing.T) {
+	// Set a test environment variable
+	testKey := "TEST_ENV_VAR_FOR_CLEAN"
+	_ = os.Setenv(testKey, "test_value")
 
-}
-func TestEnvHandler(t *testing.T) {
+	// Verify the variable is set
+	if val, exists := os.LookupEnv(testKey); !exists || val != "test_value" {
+		t.Fatalf("Failed to set up test environment variable: %s", testKey)
+	}
 
-	env := envwrap.NewStorage()
+	// Create a clean environment
+	s := envwrap.NewClean(t)
+	if s == nil {
+		t.Fatal("NewClean returned nil")
+	}
 
-	assert.EqualValues(t, envwrap.ErrEntryDoesNotExists, env.Release("doesntexist"))
+	// Verify the environment is clean (our test variable should be gone)
+	if _, exists := os.LookupEnv(testKey); exists {
+		t.Errorf("NewClean did not clear environment variables")
+	}
 
-	// set a non existing one
-	assert.Empty(t, os.Getenv("testenvhandler"))
-	assert.NoError(t, env.Store("testenvhandler", "yes1"))
-	assert.EqualValues(t, "yes1", os.Getenv("testenvhandler"))
-	assert.EqualValues(t, envwrap.ErrEntryAlreadyExists, env.Store("testenvhandler", "yes2"))
-	assert.EqualValues(t, "yes1", os.Getenv("testenvhandler"))
-	assert.NoError(t, env.Release("testenvhandler"))
-	assert.Empty(t, os.Getenv("testenvhandler"))
-	assert.Error(t, env.Release("testenvhandler"))
-
-	// a env already exists
-	assert.Empty(t, os.Getenv("testenvhandler"))
-	os.Setenv("testenvhandler", "test")
-	assert.EqualValues(t, "test", os.Getenv("testenvhandler"))
-	assert.NoError(t, env.Store("testenvhandler", "yes1"))
-	assert.EqualValues(t, "yes1", os.Getenv("testenvhandler"))
-	assert.NoError(t, env.Release("testenvhandler"))
-	assert.EqualValues(t, "test", os.Getenv("testenvhandler"))
-
-	assert.NoError(t, env.ReleaseAll())
+	// After the test completes, the environment should be restored
 }
 
-func ExampleNewStorage() {
-	env := envwrap.NewStorage()
-	oldVariable := os.Getenv("A_VARIABLE")
-	_ = env.Store("A_VARIABLE", "test")
-	fmt.Println(oldVariable, os.Getenv("A_VARIABLE"))
-	_ = env.ReleaseAll()
-	// Output: test
+func TestSetenv(t *testing.T) {
+	// Test setting a single environment variable
+	s := envwrap.New(t)
+	testKey := "TEST_SETENV_SINGLE"
+	testValue := "test_value_single"
+
+	s.Setenv(envwrap.KV{Key: testKey, Value: testValue})
+
+	// Verify the variable was set
+	if val, exists := os.LookupEnv(testKey); !exists || val != testValue {
+		t.Errorf("Setenv failed to set environment variable %s", testKey)
+	}
+
+	// Test setting multiple environment variables
+	testKeys := []string{"TEST_SETENV_MULTI_1", "TEST_SETENV_MULTI_2"}
+	testValues := []string{"test_value_multi_1", "test_value_multi_2"}
+
+	var kvs []envwrap.KV
+	for i := range testKeys {
+		kvs = append(kvs, envwrap.KV{Key: testKeys[i], Value: testValues[i]})
+	}
+
+	s.Setenv(kvs...)
+
+	// Verify all variables were set
+	for i, key := range testKeys {
+		if val, exists := os.LookupEnv(key); !exists || val != testValues[i] {
+			t.Errorf("Setenv failed to set environment variable %s", key)
+		}
+	}
 }
 
-func ExampleNewCleanStorage() {
-	env := envwrap.NewCleanStorage()
-	fmt.Println(len(os.Environ()))
-	_ = env.ReleaseAll()
-	// Output: 0
+func TestCleanupAfterTest(t *testing.T) {
+	// Create a sub-test to verify cleanup works
+	t.Run("SubTest", func(t *testing.T) {
+		s := envwrap.New(t)
+		testKey := "TEST_CLEANUP"
+		testValue := "test_value_cleanup"
+
+		// Set initial state - ensure the variable doesn't exist
+		os.Unsetenv(testKey)
+
+		// Set the variable through our wrapper
+		s.Setenv(envwrap.KV{Key: testKey, Value: testValue})
+
+		// Verify it was set
+		if val, exists := os.LookupEnv(testKey); !exists || val != testValue {
+			t.Errorf("Setenv failed to set environment variable %s", testKey)
+		}
+
+		// When this sub-test ends, cleanup should happen automatically
+	})
+
+	// Verify the variable was cleaned up after the sub-test
+	if _, exists := os.LookupEnv("TEST_CLEANUP"); exists {
+		t.Error("Cleanup failed to remove environment variable")
+	}
+}
+
+func TestOverrideAndRestore(t *testing.T) {
+	// Test that overriding an existing variable works and is restored
+	testKey := "TEST_OVERRIDE"
+	originalValue := "original_value"
+	newValue := "new_value"
+
+	// Set initial value
+	os.Setenv(testKey, originalValue)
+
+	t.Run("SubTest", func(t *testing.T) {
+		s := envwrap.New(t)
+
+		// Override the variable
+		s.Setenv(envwrap.KV{Key: testKey, Value: newValue})
+
+		// Verify it was overridden
+		if val, exists := os.LookupEnv(testKey); !exists || val != newValue {
+			t.Errorf("Setenv failed to override environment variable %s", testKey)
+		}
+
+		// When this sub-test ends, the original value should be restored
+	})
+
+	// Verify the original value was restored
+	if val, exists := os.LookupEnv(testKey); !exists || val != originalValue {
+		t.Errorf("Cleanup failed to restore original environment variable value for %s", testKey)
+	}
+
+	// Clean up
+	os.Unsetenv(testKey)
+}
+
+func TestNewCleanRestoresEnvironment(t *testing.T) {
+	// Set a test environment variable
+	testKey := "TEST_RESTORE_ENV"
+	testValue := "test_restore_value"
+	os.Setenv(testKey, testValue)
+
+	t.Run("SubTest", func(t *testing.T) {
+		// Create a clean environment
+		_ = envwrap.NewClean(t)
+
+		// Verify the environment is clean
+		if _, exists := os.LookupEnv(testKey); exists {
+			t.Errorf("NewClean did not clear environment variables")
+		}
+
+		// When this sub-test ends, the environment should be restored
+	})
+
+	// Verify the original environment was restored
+	if val, exists := os.LookupEnv(testKey); !exists || val != testValue {
+		t.Errorf("NewClean failed to restore original environment")
+	}
+
+	// Clean up
+	os.Unsetenv(testKey)
 }

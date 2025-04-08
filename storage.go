@@ -1,94 +1,82 @@
 package envwrap
 
 import (
-	"errors"
 	"os"
 	"strings"
 	"sync"
+	"testing"
 )
 
-var (
-	// ErrEntryAlreadyExists is returned when an entry already exists
-	ErrEntryAlreadyExists = errors.New("ErrEntryAlreadyExists")
-	// ErrEntryDoesNotExists is returned when an entry doesn't exists
-	ErrEntryDoesNotExists = errors.New("ErrEntryDoesNotExists")
-)
-
-// Storage is a container used to store the environment variables that we override
-type Storage struct {
-	env map[string]string
-
-	mu sync.Mutex
+type KV struct {
+	Key, Value string
 }
 
-// NewStorage creates a new environment storage instance, only used for debugging purposes, so we can test various combination of environments from the single environment
-func NewStorage() *Storage {
-	return &Storage{env: make(map[string]string)}
+type Storage interface {
+	Setenv(kv ...KV)
 }
 
-// NewCleanStorage removes all env variables and returns a new environment storage instance, only used for debugging purposes, so we can test various combination of environments from the single environment
-func NewCleanStorage() *Storage {
-	storage := &Storage{env: make(map[string]string)}
-	// fetch all the envs and put in the storage
-	for _, s := range os.Environ() {
-		parts := strings.SplitN(s, "=", 2)
-		k, v := parts[0], parts[1]
-		_ = storage.Store(k, v)
+// storage is a container used to store the environment variables that we override
+type storage struct {
+	env      map[string]string
+	mu       *sync.Mutex
+	t        *testing.T
+	cleanEnv bool
+}
+
+func (s *storage) init() {
+	s.env = make(map[string]string)
+	s.mu = new(sync.Mutex)
+
+	if s.cleanEnv {
+		s.collectEnv()
+		os.Clearenv()
+		s.t.Cleanup(s.restoreEnv)
 	}
-	os.Clearenv()
-	return storage
 }
 
-// List returns the list of entries from environment storage
-func (e *Storage) List() map[string]string {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.env
-}
-
-// Store stores a value for an entry in environment storage
-func (e *Storage) Store(envar string, value string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if _, ok := e.env[envar]; ok {
-		return ErrEntryAlreadyExists
+func (s *storage) collectEnv() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, v := range os.Environ() {
+		p := strings.SplitN(v, "=", 2)
+		s.env[p[0]] = p[1]
 	}
-
-	if enval := os.Getenv(envar); enval != "" {
-		e.env[envar] = enval
-		_ = os.Setenv(envar, value)
-	} else {
-		e.env[envar] = ""
-		_ = os.Setenv(envar, value)
-	}
-
-	return nil
 }
 
-// Release releases all values for an entry and returns an error is entry doesn't exists
-func (e *Storage) Release(envar string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (s *storage) restoreEnv() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, v := range s.env {
+		_ = os.Setenv(k, v)
+	}
+}
 
-	if val, ok := e.env[envar]; ok {
-		if val == "" {
-			_ = os.Unsetenv(envar)
-		} else {
-			_ = os.Setenv(envar, val)
+func (s *storage) Setenv(kv ...KV) {
+	for _, v := range kv {
+		key := v.Key
+		value := v.Value
+		prevValue, ok := os.LookupEnv(key)
+		if err := os.Setenv(key, value); err != nil {
+			s.t.Fatalf("cannot set environment variable: %v", err)
 		}
-		delete(e.env, envar)
-		return nil
+		if ok {
+			s.t.Cleanup(func() { _ = os.Setenv(key, prevValue) })
+		} else {
+			s.t.Cleanup(func() { _ = os.Unsetenv(key) })
+		}
 	}
-
-	return ErrEntryDoesNotExists
-
 }
 
-// ReleaseAll releases all environment entries we have stored, restoring the environment to the original state as before the call was made
-func (e *Storage) ReleaseAll() (err error) {
-	for envar := range e.env {
-		_ = e.Release(envar)
-	}
-	return err
+func New(t *testing.T) Storage {
+	t.Helper()
+	s := &storage{t: t}
+	s.init()
+	return s
+}
+
+func NewClean(t *testing.T) Storage {
+	t.Helper()
+	s := &storage{t: t, cleanEnv: true}
+	s.init()
+	return s
 }
