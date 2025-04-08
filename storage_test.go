@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ilijamt/envwrap"
+	"github.com/ilijamt/envwrap/v2"
 )
 
 func TestNew(t *testing.T) {
